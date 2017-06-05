@@ -1,3 +1,5 @@
+Please work
+
 SELECT A.D_VST_ID, A.A_Last_Donation, Y.Previous_Visit, to_date(NAT.N_PER_FDRWDTE,'yyyymmdd') AS First_Visit
 FROM
 (
