@@ -1,0 +1,59 @@
+SELECT A.D_VST_ID, A.A_Last_Donation, Y.Previous_Visit, to_date(NAT.N_PER_FDRWDTE,'yyyymmdd') AS First_Visit
+FROM
+(
+SELECT MV3.D_VST_ID, max(to_date(MV3.D_VST_DATE,'yyyymmdd')) AS A_Last_Donation
+		FROM DNR_VST_DB_REC MV3
+		WHERE to_date(MV3.D_VST_DATE,'yyyymmdd') >= {?begindate}
+				AND to_date(MV3.D_VST_DATE,'yyyymmdd') <= {?enddate}
+				AND MV3.D_VST_DONTYP IN ('2R','HH','PA','PE','PR','WB')
+				AND MV3.D_VST_ID IN
+				(			
+					SELECT D.N_NAM_ID
+					FROM
+					NAT_NAM_DB_REC D
+					WHERE
+					D.N_NAM_SEQNO = 0 AND
+					D.N_NAM_ID IN (SELECT DISTINCT D_VST_ID
+									FROM DNR_VST_DB_REC
+									WHERE (to_date(D_VST_DATE,'yyyymmdd') >= {?begindate}
+									AND to_date(D_VST_DATE,'yyyymmdd') <= {?enddate}
+									AND D_VST_DONTYP IN ('2R','HH','PA','PE','PR','WB')) OR D_VST_DATE IS NULL
+								   ) 
+				)
+				Group By MV3.D_VST_ID
+) A
+Left JOIN
+(
+	SELECT MV2.D_VST_ID, Z.Last_Donation, max(to_date(MV2.D_VST_DATE,'yyyymmdd')) AS Previous_Visit
+	FROM DNR_VST_DB_REC MV2 JOIN
+	(
+		SELECT X.D_VST_ID, X.Last_Donation
+		FROM DNR_VST_DB_REC MV1
+		JOIN
+		(	
+			SELECT MV.D_VST_ID, max(to_date(MV.D_VST_DATE,'yyyymmdd')) AS Last_Donation
+			FROM DNR_VST_DB_REC MV
+			WHERE to_date(MV.D_VST_DATE,'yyyymmdd') >= {?begindate}
+				AND to_date(MV.D_VST_DATE,'yyyymmdd') <= {?enddate}
+				AND MV.D_VST_DONTYP IN ('2R','HH','PA','PE','PR','WB')
+				AND MV.D_VST_ID IN
+				(			
+					SELECT D.N_NAM_ID
+					FROM
+					NAT_NAM_DB_REC D
+					WHERE
+					D.N_NAM_SEQNO = 0 AND
+					D.N_NAM_ID IN (SELECT DISTINCT D_VST_ID
+									FROM DNR_VST_DB_REC
+									WHERE to_date(D_VST_DATE,'yyyymmdd') >= {?begindate}
+									AND to_date(D_VST_DATE,'yyyymmdd') <= {?enddate}
+									AND D_VST_DONTYP IN ('2R','HH','PA','PE','PR','WB')
+								   ) 
+				)
+				Group By MV.D_VST_ID, MV.D_VST_DATE
+		) X ON X.D_VST_ID = MV1.D_VST_ID
+	) Z ON MV2.D_VST_ID = Z.D_VST_ID AND to_date(MV2.D_VST_DATE,'yyyymmdd') < Z.Last_Donation
+	Group By MV2.D_VST_ID, Z.Last_Donation
+) Y ON A.D_VST_ID = Y.D_VST_ID
+JOIN NAT_PER_DB_REC NAT ON A.D_VST_ID = NAT.N_PER_ID 
+		
